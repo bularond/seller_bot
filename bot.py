@@ -3,8 +3,9 @@
 import logging
 
 from settings import token
+from database import database
 
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 
@@ -16,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 MENU, CHOOSING = range(2)
 
+db = database()
+
 keyboard = [["Catalog"],
             ["Reviews"],
             ["Guarantee"],
@@ -26,20 +29,28 @@ markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
 def start(update, context):
     update.message.reply_text("Entire message",
             reply_markup=markup)
+
     return MENU
 
 
 def catalog(update, context):
     text = update.message.text
-    update.message.reply_text(
-        "*Catalog:*"
-    )
+    reply_text = 'List:\n'
+    point = 1
+    for item in db.get_catalog():
+        reply_text += f"{point}. {item['name']} - {item['cost']} p.\n"
+        point += 1
+    keyboard = [
+            [InlineKeyboardButton(str(i), callback_data=str(i)) for i in range(j, min(point, j+5))] 
+            for j in range(1, point, 5)
+    ] + [[InlineKeyboardButton('Back', callback_data='back')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text(reply_text, reply_markup=reply_markup)
+    
     return CHOOSING
 
 def other(update, context):
-    text = update.message.text
-    
-    rerurn MENU
+    pass
 
 def done(update, context):
     update.message.reply_text("Something went wrong")

@@ -2,7 +2,7 @@
 
 class database:
 
-    ls = list[
+    ls = [
         {
             'name': 'A',
             'cost': 100,
@@ -28,12 +28,15 @@ class database:
             'cost': 140,
             'description': 'eeeee'
         },
+        {
+            'name': 'F',
+            'cost': 150,
+            'description': 'fffff'
+        }
     ]
     
-    def __init__:
+    def __init__(self):
         pass
 
-    def get_catalog(count=10, offset=0):
-        
-
-
+    def get_catalog(self, count=10, offset=0):
+        return self.ls[offset:offset+count] 
