@@ -5,9 +5,8 @@ import logging
 from settings import token
 from database import database
 
-from telegram import ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
-                          ConversationHandler, CallbackQueryHandler)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -21,78 +20,99 @@ db = database()
 
 def start(update, context):
     menu_keyboard = [
-        ["Каталог"],
-        ["Отзывы"],
-        ["Гарантии"],
-        ["Поддержка"]
+        [InlineKeyboardButton("Каталог", callback_data='0')],
+        [InlineKeyboardButton("Отзывы", callback_data='1')],
+        [InlineKeyboardButton("Гарантии", callback_data='2')],
+        [InlineKeyboardButton("Поддержка", callback_data='3')]
     ]
-    markup = ReplyKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
+    
+    reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
 
-    update.message.reply_text("Entire message",
-            reply_markup=markup)
+    update.message.reply_text(
+        "Главное меню",
+        reply_markup=reply_markup
+    )
 
     return MENU
 
+def start_over(update, context):
+    querry = update.callback_query
+    menu_keyboard = [
+        [InlineKeyboardButton("Каталог", callback_data='0')],
+        [InlineKeyboardButton("Отзывы", callback_data='1')],
+        [InlineKeyboardButton("Гарантии", callback_data='2')],
+        [InlineKeyboardButton("Поддержка", callback_data='3')]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
+
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text="Главное меню",
+        reply_markup=reply_markup
+    )
+
+    return MENU
 
 def catalog(update, context):
-    text = update.message.text
+    querry = update.callback_query
     if(context.user_data.get('offset') == None):
         context.user_data['offset'] = 0
-    reply_text = 'List:\n'
+    reply_text = 'Список:\n'
     point = 1
-    ls = db.get_catalog(offset=context.user_data['offset'])
-    for item in ls:
+    items = db.get_catalog(offset=context.user_data['offset'])
+    for item in items:
         reply_text += f"{point}. {item['name']} - {item['cost']} p.\n"
         point += 1
     keyboard = list()
-    for i in range(1, point, 5):
+    for i in range(1, point, point//2):
         keyboard.append([])
-        for j in range(i, min(point, i + 5)):
-            keyboard[-1].append(str(j))
+        for j in range(i, min(point, i + point//2)):
+            callback_data = str(items[j-1]['id'])
+            keyboard[-1].append(InlineKeyboardButton(str(j), callback_data=callback_data))
     keyboard.append([
-        'Back'
+        InlineKeyboardButton('Назад', callback_data='back')
     ])
-    reply_markup = ReplyKeyboardMarkup(keyboard)
-    update.message.reply_text(reply_text, reply_markup=reply_markup)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text=reply_text,
+        reply_markup=reply_markup
+    )
 
     return CHOOSING
 
 
 def catalog_button(update, context):
-    text = update.message.text
-    if(text == 'Back'):
-        return start(update, context)
-    else:
-        id = context.user_data['offset'] + int(text) - 1
-        context.user_data['last_id'] = id
-        item = db.get_item_by_id(id)
-        reply_text = f"{item['name']}\n{item['description']}\n{item['cost']} p."
-        keyboard = [
-            [KeyboardButton('Buy'), KeyboardButton('Back')]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard)
-        update.message.reply_text(reply_text, reply_markup=reply_markup)
+    querry = update.callback_query
+    id = int(querry.data)
+    context.user_data['last_id'] = id
+    item = db.get_item_by_id(id)
+    reply_text = f"{item['name']}\n{item['description']}\n{item['cost']} p."
+    keyboard = [
+        [InlineKeyboardButton("Перейти к оплате", callback_data='buy')],
+        [InlineKeyboardButton("Назад", callback_data='back')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text=reply_text,
+        reply_markup=reply_markup
+    )
 
-        return LOOKING
+    return LOOKING
 
-
-def looking_button(update, context):
-    text = update.message.text
-    if(text == 'Back'):
-        return catalog(update, context)
-    elif(text == 'Buy'):
-        #TODO
-        update.message.reply_text(f"Buy id={context.user_data['last_id']}")
-        return catalog(update, context)
+def looking_buy(update, context):
+    querry = update.callback_query
+    context.bot.send_message(context.job.context, f"Buy id={context.user_data['last_id']}")
+    return catalog(update, context)
 
 
 def other(update, context):
-    pass
-
-
-def done(update, context):
-    update.message.reply_text("Something went wrong")
-    return ConversationHandler.END
+    return MENU
 
 
 def error(update, context):
@@ -107,18 +127,16 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             MENU: [
-                MessageHandler(Filters.regex('^Catalog$'),
-                               catalog),
-                MessageHandler(Filters.regex('^(Reviews|Guarantee|Support)$'),
-                               other)
+                CallbackQueryHandler(catalog, pattern='^0$'),
+                CallbackQueryHandler(other, pattern='^[1-3]$')
             ],
             CHOOSING: [
-                MessageHandler(Filters.regex('^(0|1|2|3|4|5|6|7|8|9|10|Back)$'),
-                               catalog_button)
+                CallbackQueryHandler(start_over, pattern='^back$'),
+                CallbackQueryHandler(catalog_button, pattern='')
             ],
             LOOKING: [
-                MessageHandler(Filters.regex('^(Buy|Back)$'),
-                               looking_button)
+                CallbackQueryHandler(catalog, pattern='^back$'),
+                CallbackQueryHandler(looking_buy, pattern='^buy$')
             ]
         },
         fallbacks=[]
