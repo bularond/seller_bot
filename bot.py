@@ -56,6 +56,12 @@ def start_over(update, context):
     return MENU
 
 def catalog(update, context):
+    """Список типов товаров
+    Структура данных
+    | id  | name | description | cost |
+    |:--- |:---- |:----------- |:---- |
+    | int | text | text        | int  |
+    """
     querry = update.callback_query
     if(context.user_data.get('offset') == None):
         context.user_data['offset'] = 0
@@ -63,13 +69,13 @@ def catalog(update, context):
     point = 1
     items = db.get_catalog(offset=context.user_data['offset'])
     for item in items:
-        reply_text += f"{point}. {item['name']} - {item['cost']} p.\n"
+        reply_text += f"{point}. {item[1]} - {item[3]} p.\n"
         point += 1
     keyboard = list()
     for i in range(1, point, point//2):
         keyboard.append([])
         for j in range(i, min(point, i + point//2)):
-            callback_data = str(items[j-1]['id'])
+            callback_data = str(items[j-1][0])
             keyboard[-1].append(InlineKeyboardButton(str(j), callback_data=callback_data))
     keyboard.append([
         InlineKeyboardButton('Назад', callback_data='back')
@@ -89,8 +95,8 @@ def catalog_button(update, context):
     querry = update.callback_query
     id = int(querry.data)
     context.user_data['last_id'] = id
-    item = db.get_item_by_id(id)
-    reply_text = f"{item['name']}\n{item['description']}\n{item['cost']} p."
+    item = db.get_product_by_id(id)
+    reply_text = f"{item[1]}\n{item[2]}\n{item[3]} p."
     keyboard = [
         [InlineKeyboardButton("Перейти к оплате", callback_data='buy')],
         [InlineKeyboardButton("Назад", callback_data='back')]
@@ -107,7 +113,7 @@ def catalog_button(update, context):
 
 def looking_buy(update, context):
     querry = update.callback_query
-    context.bot.send_message(context.job.context, f"Buy id={context.user_data['last_id']}")
+    update.message.reply_text(f"Buy id={context.user_data['last_id']}")
     return catalog(update, context)
 
 
