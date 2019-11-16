@@ -118,6 +118,23 @@ def looking_buy(update, context):
 
 
 def other(update, context):
+    querry = update.callback_query
+    menu_keyboard = [
+        [InlineKeyboardButton("Каталог", callback_data='0')],
+        [InlineKeyboardButton("Отзывы", callback_data='1')],
+        [InlineKeyboardButton("Гарантии", callback_data='2')],
+        [InlineKeyboardButton("Поддержка", callback_data='3')]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
+
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text="Гарантии и что-то там еще",
+        reply_markup=reply_markup
+    )
+
     return MENU
 
 
