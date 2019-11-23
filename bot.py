@@ -2,8 +2,9 @@
 
 import logging
 
-from settings import token
+from settings import token, qiwi_account
 from database import database
+from qiwi import qiwi
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
@@ -14,9 +15,10 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-MENU, CHOOSING, LOOKING = range(3)
+MENU, CHOOSING, LOOKING, BUY, KEY = range(5)
 
 db = database()
+payments = qiwi()
 
 def start(update, context):
     menu_keyboard = [
@@ -113,8 +115,70 @@ def catalog_button(update, context):
 
 def looking_buy(update, context):
     querry = update.callback_query
-    update.message.reply_text(f"Buy id={context.user_data['last_id']}")
-    return catalog(update, context)
+    item = db.get_product_by_id(context.user_data['last_id'])
+    code = db.add_purchase(querry.message.chat_id, item[0])
+    text = f"К оплате **{item[3]}** рублей.\n\
+             Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n\
+             В коментариях укажите ```{code}```."
+    keyboard = [
+        [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
+        [InlineKeyboardButton("Назад", callback_data='back')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text=text,
+        reply_markup=reply_markup
+    )
+    return BUY
+
+def check(update, context):
+    querry = update.callback_query
+    code = int(querry.data)
+    purchase = db.get_purchase_by_code()
+    product = db.get_product_by_id(purchase[2])
+    status = qiwi.check_payment(code, product[3])
+    if(status == 2):
+        key = db.get_key_by_product_id(product[0])
+        db.remove_purcases_by_code()
+        db.remove_key()
+        db.add_key_to_user(key, querry.chat_id)
+        text = f"Покупка прошла успешно.\n\n\
+                 Ваш ключ ```{key}```.\n\n\
+                 Вы так же сможете посмотреть его в разделе Мои покупки."
+        keypad = [
+            [InlineKeyboardButton("Назад", callback_data='back')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+    elif(status == 1):
+        text = f"К оплате **{item[3]}** рублей.\n\
+                 Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n\
+                 В коментариях укажите ```{code}```.\n\n\
+                 Оплата прошла неудачно.\
+                 Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
+        keypad = [
+            [InlineKeyboardButton("Назад", callback_data='back')],
+            [InlineKeyboardButton("Поддержка", callback_data='support')]
+        ]
+    elif(status == 0):
+        text = f"К оплате **{item[3]}** рублей.\n\
+                 Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n\
+                 В коментариях укажите ```{code}```.\n\n\
+                 Вашей оплаты не найдено. \
+                 Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
+        keypad = [
+            [InlineKeyboardButton("Назад", callback_data='back')],
+            [InlineKeyboardButton("Поддержка", callback_data='support')]
+        ]
+
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text=reply_text,
+        reply_markup=reply_markup
+    )
+    
 
 
 def other(update, context):

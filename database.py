@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import sqlite3
 
-from random import getrandbits
+from random import randint
+from time import time
 
 class database:
     """
@@ -11,9 +12,9 @@ class database:
     |:--- |:---- |:----------- |:---- |
     | int | text | text        | int  |
     ## purchases ##
-    | id  | user_id | product | code |
-    |:--- |:------- |:------- |:---- |
-    | int | int     | int     | int  |
+    | id  | user_id | product | code | datetime |
+    |:--- |:------- |:------- |:---- |:-------- |
+    | int | int     | int     | int  | int      |
     ## keys ##
     | id  | product | value   |
     |:--- |:------- |:------- |
@@ -32,7 +33,7 @@ class database:
     def get_product_by_id(self, id):
         with sqlite3.connect('database.db') as conn:
             for product in conn.execute(f"""SELECT * FROM products 
-                                            WHERE id == {id} AND count > 0"""):
+                                            WHERE id == {id}"""):
                 return product 
             return None
 
@@ -45,12 +46,13 @@ class database:
 
     def add_purchase(self, user_id, product):
         with sqlite3.connect('database.db') as conn:
-            code = getrandbits(32)
+            code = randint(10000, 99999)
             while(self.get_purchase_by_code(code)):
-                code = getrandbits(32)
-            conn.execute(f"""INSERT INTO purchases (user_id, product, code)
-                             VALUES ({user_id}, {product}, {code})""")
+                code = randint(10000, 99999)
+            conn.execute(f"""INSERT INTO purchases (user_id, product, code, datetime)
+                             VALUES ({user_id}, {product}, {code}, {time()})""")
             conn.commit()
+            return code
 
 
     def get_key_by_product_id(self, product_id):
@@ -63,9 +65,22 @@ class database:
     def remove_purcases_by_code(self, code):
         with sqlite3.connect('database.db') as conn:
             conn.execute(f"""DELETE FROM purchases
-                             WERE code == {code}""")
+                             WHERE code == {code}""")
+            conn.commit()
+
+    def remove_key(self, key):
+        with sqlite3.connect('database.db') as conn:
+            conn.execute(f"""DELETE FROM keys
+                             WHERE value == {key}""")
+            conn.commit()
+
+    def add_key_to_user(self, key, user_id):
+        with sqlite3.connect('database.db') as conn:
+            conn.execute(f"""INSERT INTO users_keys (key, user_id, datetime)\
+                             VALUES ({key}, {user_id}, {time()})""")
+            conn.commit()
 
 if __name__ == "__main__":
     db = database()
-    print(db.add_purchase(12, 21))
+    db.remove_key("123123")
 
