@@ -16,9 +16,9 @@ class database:
     |:--- |:------- |:------- |:---- |:-------- |
     | int | int     | int     | int  | int      |
     ## keys ##
-    | id  | product | value   |
-    |:--- |:------- |:------- |
-    | int | int     | text    |
+    | id  | product | key  |
+    |:--- |:------- |:---- |
+    | int | int     | text |
     """
 
     def get_catalog(self, offset=0, count=10):
@@ -71,7 +71,7 @@ class database:
     def remove_key(self, key):
         with sqlite3.connect('database.db') as conn:
             conn.execute(f"""DELETE FROM keys
-                             WHERE value == {key}""")
+                             WHERE key == {key}""")
             conn.commit()
 
     def add_key_to_user(self, key, user_id):

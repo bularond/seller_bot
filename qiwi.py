@@ -4,6 +4,8 @@ import json
 from settings import qiwi_token, qiwi_account
 
 class qiwi:
+    def __init__(self):
+        pass
 
     def get_payments(self, count=50):
         session = requests.Session()
@@ -22,7 +24,7 @@ class qiwi:
         """
         status = 0
         for payment in self.get_payments():
-            if(payment['comment'] == code):
+            if(payment['comment'] == str(code)):
                 status = 1
                 if(payment['status'] == 'SUCCESS' and payment['sum']['amount'] >= sum):
                     return 2
@@ -30,5 +32,5 @@ class qiwi:
 
 if __name__ == "__main__":
     pay = qiwi()
-    print(pay.check_payment(None, 1))
+    print(pay.check_payment('96171', 3))
 
