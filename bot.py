@@ -15,7 +15,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-MENU, CHOOSING, LOOKING, BUY, KEY, CHECK = range(6)
+MENU, CHOOSING, LOOKING, BUY, KEY, CHECK, LOOKING_KEYS = range(7)
 
 db = database()
 payments = qiwi()
@@ -41,9 +41,10 @@ def start_over(update, context):
     querry = update.callback_query
     menu_keyboard = [
         [InlineKeyboardButton("Каталог", callback_data='0')],
-        [InlineKeyboardButton("Отзывы", callback_data='1')],
-        [InlineKeyboardButton("Гарантии", callback_data='2')],
-        [InlineKeyboardButton("Поддержка", callback_data='3')]
+        [InlineKeyboardButton("Мои покупки", callback_data='1')],
+        [InlineKeyboardButton("Отзывы", callback_data='2')],
+        [InlineKeyboardButton("Гарантии", callback_data='3')],
+        [InlineKeyboardButton("Поддержка", callback_data='4')]
     ]
     
     reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
@@ -146,9 +147,9 @@ def check(update, context):
         key = db.get_key_by_product_id(product[0])
         db.remove_purcases_by_code(code)
         db.remove_key(key[2])
-        db.add_key_to_user(key[2], querry.chat_id)
+        db.add_key_to_user(key[2], querry.message.chat_id)
         text  = f"Покупка прошла успешно.\n\n"
-        text += f"Ваш ключ ```{key}```.\n\n"
+        text += f"Ваш ключ ```{key[2]}```.\n\n"
         text += f"Вы так же сможете посмотреть его в разделе Мои покупки."
         keypad = [
             [InlineKeyboardButton("Назад", callback_data='back')]
@@ -185,6 +186,28 @@ def check(update, context):
 
     return CHECK
     
+def users_keys(update, context):
+    querry = update.callback_query
+    keys = db.get_users_keys(querry.message.chat_id)
+    if(len(keys) == 0):
+        text = "Вы пока не совершали покупки"
+    else:
+        text = "Ваши купленные ключи:\n"
+        for key in keys:
+            text += f"{key[1]}\n"
+    keypad = [
+        [InlineKeyboardButton("Назад", callback_data='back')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keypad)
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text=text,
+        reply_markup=reply_markup
+    )
+
+    return LOOKING_KEYS
+        
 
 def other(update, context):
     querry = update.callback_query
@@ -220,7 +243,11 @@ def main():
         states={
             MENU: [
                 CallbackQueryHandler(catalog, pattern='^0$'),
-                CallbackQueryHandler(other, pattern='^[1-3]$')
+                CallbackQueryHandler(users_keys, pattern='^1$'),
+                CallbackQueryHandler(other, pattern='^(2|3|4)$')
+            ],
+            LOOKING_KEYS: [
+                CallbackQueryHandler(start_over, pattern='^back$')
             ],
             CHOOSING: [
                 CallbackQueryHandler(start_over, pattern='^back$'),

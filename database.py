@@ -19,7 +19,12 @@ class database:
     | id  | product | key  |
     |:--- |:------- |:---- |
     | int | int     | text |
+    ## users_keys ##
+    | id  | key  | user_id | datetime |
+    |:--- |:---- |:------- |:-------- |
+    | int | text | int     | int      |
     """
+
 
     def get_catalog(self, offset=0, count=10):
         with sqlite3.connect('database.db') as conn:
@@ -30,6 +35,7 @@ class database:
                 out.append(item)
             return out
 
+
     def get_product_by_id(self, id):
         with sqlite3.connect('database.db') as conn:
             for product in conn.execute(f"""SELECT * FROM products 
@@ -37,12 +43,14 @@ class database:
                 return product 
             return None
 
+
     def get_purchase_by_code(self, code):
         with sqlite3.connect('database.db') as conn:
             for purchase in conn.execute(f"""SELECT * FROM purchases 
                                              WHERE code == {code}"""):
                 return purchase  
             return None
+
 
     def add_purchase(self, user_id, product):
         with sqlite3.connect('database.db') as conn:
@@ -62,11 +70,13 @@ class database:
                 return key
             return None
 
+
     def remove_purcases_by_code(self, code):
         with sqlite3.connect('database.db') as conn:
             conn.execute(f"""DELETE FROM purchases
                              WHERE code == {code}""")
             conn.commit()
+
 
     def remove_key(self, key):
         with sqlite3.connect('database.db') as conn:
@@ -74,11 +84,22 @@ class database:
                              WHERE key == {key}""")
             conn.commit()
 
+
     def add_key_to_user(self, key, user_id):
         with sqlite3.connect('database.db') as conn:
             conn.execute(f"""INSERT INTO users_keys (key, user_id, datetime)\
                              VALUES ({key}, {user_id}, {time()})""")
             conn.commit()
+
+
+    def get_users_keys(self, user_id):
+        with sqlite3.connect('database.db') as conn:
+            users_keys = []
+            for user_key in conn.execute(f"""SELECT * FROM users_keys
+                                            WHERE user_id == {user_id}"""):
+                users_keys.append(user_key)
+            return users_keys
+
 
 if __name__ == "__main__":
     db = database()
