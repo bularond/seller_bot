@@ -7,7 +7,9 @@ from database import database
 from qiwi import qiwi
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
+from telegram.ext import (Updater, CommandHandler, 
+                          CallbackQueryHandler, ConversationHandler,
+                          PicklePersistence)
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,51 +22,48 @@ MENU, CHOOSING, LOOKING, BUY, KEY, CHECK, LOOKING_KEYS = range(7)
 db = database()
 payments = qiwi()
 
-def start(update, context):
-    menu_keyboard = [
-        [InlineKeyboardButton("Каталог", callback_data='0')],
-        [InlineKeyboardButton("Отзывы", callback_data='1')],
-        [InlineKeyboardButton("Гарантии", callback_data='2')],
-        [InlineKeyboardButton("Поддержка", callback_data='3')]
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
+menu_keyboard = [
+    [InlineKeyboardButton("Каталог", callback_data='catalog')],
+    [InlineKeyboardButton("Мои покупки", callback_data='purchases')],
+    [InlineKeyboardButton("Отзывы", callback_data='feedback')],
+    [InlineKeyboardButton("Гарантии", callback_data='warranty')],
+    [InlineKeyboardButton("Поддержка", callback_data='support')]
+]
+menu_markup= InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
 
+def start(update, context):
     update.message.reply_text(
         "Главное меню",
-        reply_markup=reply_markup
+        reply_markup=menu_markup
     )
 
     return MENU
 
 def start_over(update, context):
     querry = update.callback_query
-    menu_keyboard = [
-        [InlineKeyboardButton("Каталог", callback_data='0')],
-        [InlineKeyboardButton("Мои покупки", callback_data='1')],
-        [InlineKeyboardButton("Отзывы", callback_data='2')],
-        [InlineKeyboardButton("Гарантии", callback_data='3')],
-        [InlineKeyboardButton("Поддержка", callback_data='4')]
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
 
     context.bot.edit_message_text(
         chat_id=querry.message.chat_id,
         message_id=querry.message.message_id,
         text="Главное меню",
-        reply_markup=reply_markup
+        reply_markup=menu_markup
+    )
+
+    return MENU
+
+def other(update, context):
+    querry = update.callback_query
+
+    context.bot.edit_message_text(
+        chat_id=querry.message.chat_id,
+        message_id=querry.message.message_id,
+        text="Гарантии",
+        reply_markup=menu_markup
     )
 
     return MENU
 
 def catalog(update, context):
-    """Список типов товаров
-    Структура данных
-    | id  | name | description | cost |
-    |:--- |:---- |:----------- |:---- |
-    | int | text | text        | int  |
-    """
     querry = update.callback_query
     if(context.user_data.get('offset') == None):
         context.user_data['offset'] = 0
@@ -121,9 +120,9 @@ def looking_buy(update, context):
     querry = update.callback_query
     item = db.get_product_by_id(context.user_data['last_id'])
     code = db.add_purchase(querry.message.chat_id, item[0])
-    text  = f"К оплате **{item[3]}** рублей.\n"
-    text += f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"
-    text += f"В коментариях укажите ```{code}```."
+    text  = f"К оплате {item[3]} рублей.\n"\
+            f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
+            f"В коментариях укажите {code}."
     keyboard = [
         [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
         [InlineKeyboardButton("Назад", callback_data='back')]
@@ -148,29 +147,29 @@ def check(update, context):
         db.remove_purcases_by_code(code)
         db.remove_key(key[2])
         db.add_key_to_user(key[2], querry.message.chat_id)
-        text  = f"Покупка прошла успешно.\n\n"
-        text += f"Ваш ключ ```{key[2]}```.\n\n"
-        text += f"Вы так же сможете посмотреть его в разделе Мои покупки."
+        text  = f"Покупка прошла успешно.\n\n"\
+                f"Ваш ключ {key[2]}.\n\n"\
+                f"Вы так же сможете посмотреть его в разделе Мои покупки."
         keypad = [
             [InlineKeyboardButton("Назад", callback_data='back')]
         ]
     elif(status == 1):
-        text  = f"К оплате **{product[3]}** рублей.\n"
-        text += f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"
-        text += f"В коментариях укажите ```{code}```.\n\n"
-        text += f"Оплата прошла неудачно."
-        text += f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
+        text  = f"К оплате {product[3]} рублей.\n"\
+                f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
+                f"В коментариях укажите {code}.\n\n"\
+                f"Оплата прошла неудачно."\
+                f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
         keypad = [
             [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
             [InlineKeyboardButton("Назад", callback_data='back')],
             [InlineKeyboardButton("Поддержка", callback_data='support')]
         ]
     elif(status == 0):
-        text  = f"К оплате **{product[3]}** рублей.\n"
-        text += f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"
-        text += f"В коментариях укажите ```{code}```.\n\n"
-        text += f"Вашей оплаты не найдено. "
-        text += f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
+        text  = f"К оплате {product[3]} рублей.\n"\
+                f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
+                f"В коментариях укажите {code}.\n\n"\
+                f"Вашей оплаты не найдено."\
+                f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
         keypad = [
             [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
             [InlineKeyboardButton("Назад", callback_data='back')],
@@ -185,7 +184,8 @@ def check(update, context):
     )
 
     return CHECK
-    
+
+  
 def users_keys(update, context):
     querry = update.callback_query
     keys = db.get_users_keys(querry.message.chat_id)
@@ -207,27 +207,6 @@ def users_keys(update, context):
     )
 
     return LOOKING_KEYS
-        
-
-def other(update, context):
-    querry = update.callback_query
-    menu_keyboard = [
-        [InlineKeyboardButton("Каталог", callback_data='0')],
-        [InlineKeyboardButton("Отзывы", callback_data='1')],
-        [InlineKeyboardButton("Гарантии", callback_data='2')],
-        [InlineKeyboardButton("Поддержка", callback_data='3')]
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
-
-    context.bot.edit_message_text(
-        chat_id=querry.message.chat_id,
-        message_id=querry.message.message_id,
-        text="Гарантии и что-то там еще",
-        reply_markup=reply_markup
-    )
-
-    return MENU
 
 
 def error(update, context):
@@ -236,14 +215,18 @@ def error(update, context):
 
 
 def main():
-    updater = Updater(token, use_context=True)
+    pp = PicklePersistence(filename='users_states')
+
+    updater = Updater(token, persistence=pp, use_context=True)
     dp = updater.dispatcher
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
+
         states={
             MENU: [
-                CallbackQueryHandler(catalog, pattern='^0$'),
-                CallbackQueryHandler(users_keys, pattern='^1$'),
+                CallbackQueryHandler(catalog, pattern='^catalog$'),
+                CallbackQueryHandler(users_keys, pattern='^purchases$'),
                 CallbackQueryHandler(other, pattern='^(2|3|4)$')
             ],
             LOOKING_KEYS: [
@@ -266,7 +249,10 @@ def main():
                 CallbackQueryHandler(check, pattern=''),
             ]
         },
-        fallbacks=[]
+
+        fallbacks=[],
+        name="seller_bot",
+        persistent=True,
     )
 
     dp.add_handler(conv_handler)
