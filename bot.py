@@ -11,7 +11,6 @@ from telegram.ext import (Updater, CommandHandler,
                           CallbackQueryHandler, ConversationHandler,
                           PicklePersistence)
 
-# Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
@@ -25,9 +24,9 @@ payments = qiwi()
 menu_keyboard = [
     [InlineKeyboardButton("Каталог", callback_data='catalog')],
     [InlineKeyboardButton("Мои покупки", callback_data='purchases')],
-    [InlineKeyboardButton("Отзывы", callback_data='feedback')],
     [InlineKeyboardButton("Гарантии", callback_data='warranty')],
-    [InlineKeyboardButton("Поддержка", callback_data='support')]
+    [InlineKeyboardButton("Отзывы", url="https://google.com")],
+    [InlineKeyboardButton("Поддержка", url="https://yandex.ru")]
 ]
 menu_markup= InlineKeyboardMarkup(menu_keyboard, one_time_keyboard=True)
 
@@ -51,13 +50,19 @@ def start_over(update, context):
 
     return MENU
 
-def other(update, context):
+def warranty(update, context):
     querry = update.callback_query
+    text = "✅ Гарантии\n"\
+           "Наш проект молод и в него вложенно много сил, по этому в наших интересах предоставлять вам качественные услуги.\n\n"\
+           "Мы несем ответсвенность за каждый проданный нами продукт, по этому гарантируем вам:\n"\
+           "✅Качество проданного продукта, работоспособность заявленных характеристик.\n"\
+           "✅Своевременную работу поддержки\n\n"\
+           "При возникновении любых вопросов, обратитесь в поддержку, мы вам поможем!"
 
     context.bot.edit_message_text(
         chat_id=querry.message.chat_id,
         message_id=querry.message.message_id,
-        text="Гарантии",
+        text=text,
         reply_markup=menu_markup
     )
 
@@ -67,22 +72,30 @@ def catalog(update, context):
     querry = update.callback_query
     if(context.user_data.get('offset') == None):
         context.user_data['offset'] = 0
-    reply_text = 'Список:\n'
-    point = 1
     items = db.get_catalog(offset=context.user_data['offset'])
-    for item in items:
-        reply_text += f"{point}. {item[1]} - {item[3]} p.\n"
-        point += 1
-    keyboard = list()
-    for i in range(1, point, point//2):
-        keyboard.append([])
-        for j in range(i, min(point, i + point//2)):
-            callback_data = str(items[j-1][0])
-            keyboard[-1].append(InlineKeyboardButton(str(j), callback_data=callback_data))
-    keyboard.append([
-        InlineKeyboardButton('Назад', callback_data='back')
-    ])
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    if(len(items)):
+        reply_text = 'Список:\n'
+        point = 1
+        for item in items:
+            reply_text += f"{point}. {item[1]} - {item[3]} p.\n"
+            point += 1
+        keyboard = list()
+        for i in range(1, point, point//2):
+            keyboard.append([])
+            for j in range(i, min(point, i + point//2)):
+                callback_data = str(items[j-1][0])
+                keyboard[-1].append(InlineKeyboardButton(str(j), callback_data=callback_data))
+        keyboard.append([
+            InlineKeyboardButton('Назад', callback_data='back')
+        ])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+    else:
+        text = "Каталог пока пуст, но скоро в нем появятся новые товары. Обязательно возвращайтесь."
+        keyboard = [
+            [InlineKeyboardButton('Назад', callback_data='back')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
     context.bot.edit_message_text(
         chat_id=querry.message.chat_id,
         message_id=querry.message.message_id,
@@ -93,7 +106,7 @@ def catalog(update, context):
     return CHOOSING
 
 
-def catalog_button(update, context):
+def product(update, context):
     querry = update.callback_query
     if(querry.data == 'back'):
         id = context.user_data['last_id']
@@ -116,13 +129,15 @@ def catalog_button(update, context):
 
     return LOOKING
 
-def looking_buy(update, context):
+def buy(update, context):
     querry = update.callback_query
     item = db.get_product_by_id(context.user_data['last_id'])
-    code = db.add_purchase(querry.message.chat_id, item[0])
+    code = db.has_purchase(querry.message.chat_id, item[0])
+    if(code == None):
+        code = db.add_purchase(querry.message.chat_id, item[0])
     text  = f"К оплате {item[3]} рублей.\n"\
             f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
-            f"В коментариях укажите {code}."
+            f"В коментариях укажите {code}.\n\n"
     keyboard = [
         [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
         [InlineKeyboardButton("Назад", callback_data='back')]
@@ -158,7 +173,7 @@ def check(update, context):
                 f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
                 f"В коментариях укажите {code}.\n\n"\
                 f"Оплата прошла неудачно."\
-                f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
+                f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку.\n\n"
         keypad = [
             [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
             [InlineKeyboardButton("Назад", callback_data='back')],
@@ -186,7 +201,7 @@ def check(update, context):
     return CHECK
 
   
-def users_keys(update, context):
+def purchases(update, context):
     querry = update.callback_query
     keys = db.get_users_keys(querry.message.chat_id)
     if(len(keys) == 0):
@@ -226,26 +241,26 @@ def main():
         states={
             MENU: [
                 CallbackQueryHandler(catalog, pattern='^catalog$'),
-                CallbackQueryHandler(users_keys, pattern='^purchases$'),
-                CallbackQueryHandler(other, pattern='^(2|3|4)$')
+                CallbackQueryHandler(purchases, pattern='^purchases$'),
+                CallbackQueryHandler(warranty, pattern='^warranty$')
             ],
             LOOKING_KEYS: [
                 CallbackQueryHandler(start_over, pattern='^back$')
             ],
             CHOOSING: [
                 CallbackQueryHandler(start_over, pattern='^back$'),
-                CallbackQueryHandler(catalog_button, pattern='')
+                CallbackQueryHandler(product, pattern='')
             ],
             LOOKING: [
                 CallbackQueryHandler(catalog, pattern='^back$'),
-                CallbackQueryHandler(looking_buy, pattern='^buy$')
+                CallbackQueryHandler(buy, pattern='^buy$')
             ],
             BUY: [
-                CallbackQueryHandler(catalog_button, pattern='^back$'),
+                CallbackQueryHandler(product, pattern='^back$'),
                 CallbackQueryHandler(check, pattern='')
             ],
             CHECK: [
-                CallbackQueryHandler(catalog_button, pattern='^back$'),
+                CallbackQueryHandler(product, pattern='^back$'),
                 CallbackQueryHandler(check, pattern=''),
             ]
         },

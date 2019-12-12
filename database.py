@@ -5,31 +5,25 @@ from random import randint
 from time import time
 
 class database:
-    """
-    #Database
-    ## products ##
-    | id  | name | description | cost |
-    |:--- |:---- |:----------- |:---- |
-    | int | text | text        | int  |
-    ## purchases ##
-    | id  | user_id | product | code | datetime |
-    |:--- |:------- |:------- |:---- |:-------- |
-    | int | int     | int     | int  | int      |
-    ## keys ##
-    | id  | product | key  |
-    |:--- |:------- |:---- |
-    | int | int     | text |
-    ## users_keys ##
-    | id  | key  | user_id | datetime |
-    |:--- |:---- |:------- |:-------- |
-    | int | text | int     | int      |
-    """
+
+    def __init__(self):
+        with sqlite3.connect('database.db') as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS keys"
+                         "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, `product` INTEGER, `key` TEXT)")
+            conn.execute("CREATE TABLE IF NOT EXISTS products"\
+                         "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, `name` TEXT, `description` TEXT, `cost` INTEGER )")
+            conn.execute("CREATE TABLE IF NOT EXISTS purchases"
+                         "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, `user_id` INTEGER, `product` INTEGER, `code` INTEGER, `datetime` INTEGER )")
+            conn.execute("CREATE TABLE IF NOT EXISTS users_keys"
+                         "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE, `key` TEXT, `user_id` INTEGER, `datetime` INTEGER, `product` INTEGER )")
+            conn.commit()
 
     def has_key_on_product(self, product, conn):
-        for key in conn.execute(f"SELECT * FROM keys "\
-                                f"WHERE product == {product}"):
-            return True
-        return False
+        with sqlite3.connect('database.db') as conn:
+            for key in conn.execute(f"SELECT * FROM keys "\
+                                    f"WHERE product == {product}"):
+                return True
+            return False
 
     def get_catalog(self, offset=0, count=10):
         with sqlite3.connect('database.db') as conn:
@@ -55,6 +49,14 @@ class database:
             for purchase in conn.execute(f"SELECT * FROM purchases "\
                                          f"WHERE code == {code}"):
                 return purchase  
+            return None
+
+    
+    def has_purchase(self, user_id, product):
+        with sqlite3.connect('database.db') as conn:
+            for purchase in conn.execute(f"SELECT * FROM purchases "\
+                                         f"WHERE user_id == {user_id} AND product == {product}"):
+                return purchase[3]
             return None
 
 
@@ -109,5 +111,5 @@ class database:
 
 if __name__ == "__main__":
     db = database()
-    db.remove_key("123123")
+    #  db.remove_key("123123")
 
