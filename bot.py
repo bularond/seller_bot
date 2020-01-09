@@ -157,7 +157,7 @@ def check(update, context):
     purchase = db.get_purchase_by_code(code)
     product = db.get_product_by_id(purchase[2])
     status = payments.check_payment(code, product[3])
-    if(status == 2):
+    if(status == 2): # sucksess
         key = db.get_key_by_product_id(product[0])
         db.remove_purcases_by_code(code)
         db.remove_key(key[2])
@@ -168,35 +168,49 @@ def check(update, context):
         keypad = [
             [InlineKeyboardButton("Назад", callback_data='back')]
         ]
-    elif(status == 1):
-        text  = f"К оплате {product[3]} рублей.\n"\
-                f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
-                f"В коментариях укажите {code}.\n\n"\
-                f"Оплата прошла неудачно."\
-                f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку.\n\n"
-        keypad = [
-            [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
-            [InlineKeyboardButton("Назад", callback_data='back')],
-            [InlineKeyboardButton("Поддержка", callback_data='support')]
-        ]
-    elif(status == 0):
-        text  = f"К оплате {product[3]} рублей.\n"\
-                f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
-                f"В коментариях укажите {code}.\n\n"\
-                f"Вашей оплаты не найдено."\
-                f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
-        keypad = [
-            [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
-            [InlineKeyboardButton("Назад", callback_data='back')],
-            [InlineKeyboardButton("Поддержка", callback_data='support')]
-        ]
-    reply_markup = InlineKeyboardMarkup(keypad)
-    context.bot.edit_message_text(
-        chat_id=querry.message.chat_id,
-        message_id=querry.message.message_id,
-        text=text,
-        reply_markup=reply_markup
-    )
+        reply_markup = InlineKeyboardMarkup(keypad)
+        context.bot.edit_message_text(
+            chat_id=querry.message.chat_id,
+            message_id=querry.message.message_id,
+            text="```123123``` ***123321321123***",
+            parse_mode="Markdown"
+        )
+        context.bot.send_message(
+            chat_id=querry.message.chat_id,
+            text=text,
+            reply_markup=reply_markup
+        )
+
+    else: # unsucksess
+        if(status == 1):
+            text  = f"К оплате {product[3]} рублей.\n"\
+                    f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
+                    f"В коментариях укажите {code}.\n\n"\
+                    f"Оплата прошла неудачно."\
+                    f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку.\n\n"
+            keypad = [
+                [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
+                [InlineKeyboardButton("Назад", callback_data='back')],
+                [InlineKeyboardButton("Поддержка", callback_data='support')]
+            ]
+        elif(status == 0):
+            text  = f"К оплате {product[3]} рублей.\n"\
+                    f"Чтобы получить ключ переведите деньги на счет qiwi.com/p/{qiwi_account}.\n"\
+                    f"В коментариях укажите {code}.\n\n"\
+                    f"Вашей оплаты не найдено."\
+                    f"Если вы оплатили, то, пожалуйста, обратитесь в поддержку."
+            keypad = [
+                [InlineKeyboardButton("Проверить оплату", callback_data=f'{code}')],
+                [InlineKeyboardButton("Назад", callback_data='back')],
+                [InlineKeyboardButton("Поддержка", callback_data='support')]
+            ]
+        reply_markup = InlineKeyboardMarkup(keypad)
+        context.bot.edit_message_text(
+            chat_id=querry.message.chat_id,
+            message_id=querry.message.message_id,
+            text=text,
+            reply_markup=reply_markup
+        )
 
     return CHECK
 

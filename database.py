@@ -74,7 +74,7 @@ class database:
     def get_key_by_product_id(self, product_id):
         with sqlite3.connect('database.db') as conn:
             for key in conn.execute(f"SELECT * FROM keys "\
-                                    f"HERE product == {product_id}"):
+                                    f"WHERE product == {product_id}"):
                 return key
             return None
 
