@@ -25,7 +25,7 @@ class database:
                 return True
             return False
 
-    def get_catalog(self, offset=0, count=10):
+    def get_catalog(self, offset=0, count=20):
         with sqlite3.connect('database.db') as conn:
             out = []
             for item in conn.execute(f"SELECT * FROM products "\
